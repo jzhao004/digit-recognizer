@@ -3,3 +3,4 @@ This project aims to identify digits from a dataset of 42000 handwritten images 
 
 #### Files
 This repository contains the following folders and files:
+1. digi-recognizer: Builds a 3-layer neural network in tensorflow to identify digits
