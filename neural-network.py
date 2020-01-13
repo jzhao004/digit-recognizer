@@ -30,7 +30,7 @@ train.head()
 # In[4]:
 
 
-# Display first 10 training images 
+# Display first 10 training images
 for i in range(10):
     plt.subplot(2,5,i+1)
     plt.grid(False)
@@ -44,7 +44,7 @@ plt.show()
 # In[5]:
 
 
-# Normalize image vectors 
+# Normalize image vectors
 train_X = train.drop("label", axis=1)/255
 test_X = test.T/255
 
@@ -61,10 +61,10 @@ sess.close()
 
 
 train_X, dev_X, train_Y, dev_Y = train_test_split(train_X, train_Y, test_size=0.1, random_state=1)
-train_X = train_X.T 
-dev_X = dev_X.T 
-train_Y = train_Y.T 
-dev_Y = dev_Y.T 
+train_X = train_X.T
+dev_X = dev_X.T
+train_Y = train_Y.T
+dev_Y = dev_Y.T
 
 print ("train_X shape: " + str(train_X.shape))
 print ("train_Y shape: " + str(train_Y.shape))
@@ -92,11 +92,11 @@ def initialize_parameters():
 # Create function to implement forward propagation
 def forward_propagation(X, parameters):
     W1, b1, W2, b2=  [parameters.get(key) for key in ["W1", "b1", "W2", "b2"]]
-    
+
     Z1 = tf.add(tf.matmul(W1,tf.cast(X,tf.float32)), b1)
     A1 = tf.nn.relu(Z1)
     Z = tf.add(tf.matmul(W2,A1), b2)
-    
+
     return Z
 
 
@@ -107,10 +107,10 @@ def forward_propagation(X, parameters):
 def compute_cost(Z, Y):
     logits = tf.transpose(Z)
     labels = tf.transpose(Y)
-    
+
     cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels))
-    
-    return cost 
+
+    return cost
 
 
 # In[10]:
@@ -126,7 +126,7 @@ def create_placeholders(n_x, n_y):
 # In[11]:
 
 
-# Create function to shuffle dataset 
+# Create function to shuffle dataset
 def shuffle_data(X, Y):
     m = X.shape[1]
     np.random.seed(1)
@@ -140,34 +140,47 @@ def shuffle_data(X, Y):
 
 
 # Create function to implement NN model
-def nn_model(train_X, train_Y, dev_X, dev_Y, learning_rate=0.0001):  
-    # Build NN graph 
+def nn_model(train_X, train_Y, dev_X, dev_Y, learning_rate=0.0001, nepochs=10, minibatch_size=32):  
+    m = train_X.shape[1]
+
+    # Build NN graph
     X, Y = create_placeholders(train_X.shape[0], train_Y.shape[0])
     initial_parameters = initialize_parameters()
     Z = forward_propagation(X, initial_parameters)
     cost = compute_cost(Z, Y)
     optimizer = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
-    
+
     # Train NN
     init = tf.global_variables_initializer()
     costs = []
 
     with tf.Session() as sess:
         sess.run(init)
-        for epoch in range(1000):
-            _ , epoch_cost = sess.run([optimizer, cost], feed_dict={X: train_X, Y: train_Y})
-            
-            costs.append(epoch_cost)
+
+        shuffled_X, shuffled_Y = shuffle_data(train_X, train_Y)
+
+        for epoch in range(nepochs):
+            epoch_cost = 0
+            nminibatches = math.floor(m/minibatch_size)
+            for i in range(0, m, minibatch_size):
+                train_X_mini = shuffled_X.iloc[:, i:min((i+minibatch_size),m)]
+                train_Y_mini = shuffled_Y[:, i:min((i+minibatch_size),m)]
+
+                _ , minibatch_cost = sess.run([optimizer, cost], feed_dict={X: train_X_mini, Y: train_Y_mini})
+
+                epoch_cost += minibatch_cost
+
+            costs.append(epoch_cost/nminibatches)
 
         parameters = sess.run(initial_parameters)
-        
+
         # Plot cost by iteration
         plt.plot(np.squeeze(costs))
         plt.ylabel('Cost')
         plt.xlabel('Iteration')
         plt.show()
 
-        # Calculate accuracy on training set and dev set 
+        # Calculate accuracy on training set and dev set
         correct_prediction = tf.equal(tf.argmax(Z), tf.argmax(Y))
         accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -179,7 +192,7 @@ def nn_model(train_X, train_Y, dev_X, dev_Y, learning_rate=0.0001):
 # In[13]:
 
 
-tf.reset_default_graph() 
+tf.reset_default_graph()
 parameters = nn_model(train_X, train_Y, dev_X, dev_Y)
 
 
@@ -187,7 +200,7 @@ parameters = nn_model(train_X, train_Y, dev_X, dev_Y)
 
 
 # Create function to make predictions
-def prediction(test_X, parameters): 
+def prediction(test_X, parameters):
     with tf.Session() as sess:
         Z = forward_propagation(test_X, parameters)
         Y_predicted = tf.argmax(tf.nn.softmax(Z))
@@ -206,4 +219,3 @@ test_Y_predicted = prediction(test_X, parameters)
 
 submission = pd.DataFrame({"ImageId": test.index+1, "Label":test_Y_predicted})
 submission.to_csv("digitrecognizer.xlsx", index=False)
-
